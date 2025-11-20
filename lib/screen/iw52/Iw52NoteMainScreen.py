@@ -66,17 +66,18 @@ class Iw52NoteMainScreen(Iw52NoteMainScreenInterface):
         return True
 
     def get_attachments(self) -> list[str]:
-        self._session.findById("wnd[0]").maximize
+        self._session.findById("wnd[0]").sendVKey(0)
         self._session.findById("wnd[0]/titl/shellcont/shell").pressButton("%GOS_TOOLBOX")
-        self._session.findById("wnd[1]/usr/tblSAPLSWUGOBJECT_CONTROL/txtSWLOBJTDYN-DESCRIPT[0,0]").caretPosition = 10
-        self._session.findById("wnd[1]").sendVKey(2)
+        self._session.findById("wnd[1]/usr/tblSAPLSWUGOBJECT_CONTROL").getAbsoluteRow(0).selected = True
+        self._session.findById("wnd[1]").sendVKey(0)
         self._session.findById("wnd[0]/shellcont/shell").pressButton("VIEW_ATTA")
-        grid = self._session.findById("wnd[1]/usr/cntlCONTAINER_0100/shellcont/shell")
-        row_count = grid.RowCount
-        attachments = []
-        for i in range(row_count):
-            self._session.findById("wnd[1]/usr/cntlCONTAINER_0100/shellcont/shell").selectedRows = str(i)
-            self._session.findById("wnd[1]/usr/cntlCONTAINER_0100/shellcont/shell").doubleClickCurrentCell()
+        self._session.findById("wnd[1]/usr/cntlCONTAINER_0100/shellcont/shell").selectedRows = "0"
+        self._session.findById("wnd[1]/usr/cntlCONTAINER_0100/shellcont/shell").doubleClickCurrentCell()
+        self._session.findById("wnd[1]").close()
+        self._session.findById("wnd[0]/shellcont").close()
+        self._session.findById("wnd[0]/tbar[0]/btn[3]").press()
+        self._session.findById("wnd[0]/tbar[0]/btn[3]").press()
+        self._session.findById("wnd[0]").maximize()
 
 
     def getNote(self) -> Note:

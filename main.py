@@ -1,5 +1,6 @@
 from lib.screen.SapLogonScreen import SapLogonScreen
-
+import pandas as pd
+import time
 
 ambiente = ""
 usuario = ""
@@ -31,4 +32,13 @@ if __name__ == "__main__":
     login = logon.loadSystem(regiao_selecionada, ambiente_selecionado)
     home = login.login(usuario, senha, regiao_selecionada, ambiente_selecionado)
     iw67Screen = home.openTransaction("iw67")
-    iw67Screen.openNotes(regiao_selecionada)
+    notes_screen = iw67Screen.openNotesScreen(regiao_selecionada)
+    notes = notes_screen.getNotes()
+    iw67Screen.back()
+    for note_number in notes:
+        iw52Screen = home.openTransaction("iw52")
+        print(f"Processing Note Number: {note_number.get('nota')}")
+        iw52NoteScreen = iw52Screen.openNote(note_number.get("nota"))
+        attachments = iw52NoteScreen.get_attachments()
+        print(f"Note Number: {note_number}, Attachments: {attachments}")
+        break  # Remove this break to process all notes

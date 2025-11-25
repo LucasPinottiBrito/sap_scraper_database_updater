@@ -24,7 +24,7 @@ class Iw52Screen(Iw52ScreenInterface):
             raise Exception(f"Note not found error. Not found {number} note in iw52")
         if self._session.findById("wnd[0]/tbar[1]/btn[17]", False):
             self._session.findById("wnd[0]/tbar[1]/btn[17]").press()
-        return Iw52NoteMainScreen(self._session, self._connection)
+        return Iw52NoteMainScreen(self._session, self._connection, number)
     
     def close(self) -> None:
         self._connection.CloseSession('ses[0]')

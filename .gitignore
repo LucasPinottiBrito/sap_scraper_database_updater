@@ -10,3 +10,6 @@ __pycache__/*
 .DS_Store
 .env
 *.csv
+/attachments
+/vba_scripts
+config.txt

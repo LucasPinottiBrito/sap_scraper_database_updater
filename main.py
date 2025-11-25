@@ -2,9 +2,18 @@ from lib.screen.SapLogonScreen import SapLogonScreen
 import pandas as pd
 import time
 
-ambiente = ""
+config_file_path = "config.txt"
 usuario = ""
 senha = ""
+ambiente = ""
+
+try:
+    config = open(config_file_path, mode='rb')
+    usuario = config.readline().decode('utf-8').strip() or ""
+    senha = config.readline().decode('utf-8').strip() or ""
+except FileNotFoundError:
+    print(f"Configuration file not found at {config_file_path}. Please create the file with the required parameters.")
+
 
 ambiente_map = [
     {"region": "SP", "name": "EP1"},
@@ -35,10 +44,17 @@ if __name__ == "__main__":
     notes_screen = iw67Screen.openNotesScreen(regiao_selecionada)
     notes = notes_screen.getNotes()
     iw67Screen.back()
+    iw52Screen = home.openTransaction("iw52")
     for note_number in notes:
-        iw52Screen = home.openTransaction("iw52")
         print(f"Processing Note Number: {note_number.get('nota')}")
         iw52NoteScreen = iw52Screen.openNote(note_number.get("nota"))
-        attachments = iw52NoteScreen.get_attachments()
-        print(f"Note Number: {note_number}, Attachments: {attachments}")
-        break  # Remove this break to process all notes
+        attachments = iw52NoteScreen.get_attachments(download_files=False)
+        note_number['attachments'] = attachments
+        print(f"Note Number: {note_number}")
+        iw52NoteScreen.back()
+        # break  # Remove this break to process all notes
+    
+    df = pd.DataFrame(notes)
+    df.to_csv("notes_with_attachments.csv", index=False, encoding='utf-8-sig')
+
+    iw52Screen.close()

@@ -1,6 +1,6 @@
 from lib.screen.SapLogonScreen import SapLogonScreen
 import pandas as pd
-import time
+import datetime
 
 config_file_path = "config.txt"
 usuario = ""
@@ -25,8 +25,8 @@ ambiente_map = [
 
 if __name__ == "__main__":
     print("SAP Module")
-    while ambiente not in [1, 2, 3, 4]:
-        ambiente = int(input("Select environment (1- EP1, 2- EP2, 3- CP1-500, 4- CP1-600): "))
+    while ambiente not in [1, 2]:
+        ambiente = int(input("Select environment (1- EP1, 2- EP2): "))
     while not usuario:
         usuario = input("Enter your username: ")
     while not senha:
@@ -47,14 +47,19 @@ if __name__ == "__main__":
     iw52Screen = home.openTransaction("iw52")
     for note_number in notes:
         print(f"Processing Note Number: {note_number.get('nota')}")
-        iw52NoteScreen = iw52Screen.openNote(note_number.get("nota"))
-        attachments = iw52NoteScreen.get_attachments(download_files=False)
+        try:
+            iw52NoteScreen = iw52Screen.openNote(note_number.get("nota"))
+        except Exception as e:
+            print(f"Error opening note {note_number.get('nota')}: {e}")
+            continue
+        attachments = iw52NoteScreen.get_attachments(download_files=False, folder_path_to_download=f"./attachments/{ambiente_selecionado}/{note_number.get('nota')}/")
         note_number['attachments'] = attachments
         print(f"Note Number: {note_number}")
         iw52NoteScreen.back()
         # break  # Remove this break to process all notes
     
     df = pd.DataFrame(notes)
-    df.to_csv("notes_with_attachments.csv", index=False, encoding='utf-8-sig')
+    today_date = datetime.datetime.now().strftime("%Y%m%d")
+    df.to_csv(f"notes_with_attachments_{today_date}_{ambiente_selecionado}.csv", index=False, encoding='utf-8-sig')
 
     iw52Screen.close()

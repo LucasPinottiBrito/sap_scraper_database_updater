@@ -25,6 +25,7 @@ class Iw67Screen(Iw67ScreenInterface):
             self._session.findById("wnd[1]/usr/txtENAME-LOW").setFocus()
             self._session.findById("wnd[1]/usr/txtENAME-LOW").caretPosition = 0
             self._session.findById("wnd[1]/tbar[0]/btn[8]").press()
+            # self._session.findById("wnd[0]/usr/ctxtVARIANT").text = "/TRIAGEM_CI"
             self._session.findById("wnd[0]/tbar[1]/btn[8]").press()
         else:
             self._session.findById("wnd[0]/tbar[1]/btn[17]").press()
@@ -35,6 +36,7 @@ class Iw67Screen(Iw67ScreenInterface):
             self._session.findById("wnd[1]/usr/cntlALV_CONTAINER_1/shellcont/shell").setCurrentCell(5,"TEXT")
             self._session.findById("wnd[1]/usr/cntlALV_CONTAINER_1/shellcont/shell").selectedRows = "5"
             self._session.findById("wnd[1]/usr/cntlALV_CONTAINER_1/shellcont/shell").doubleClickCurrentCell()
+            self._session.findById("wnd[0]/usr/ctxtVARIANT").text = "/TRIAGEM_CI"
             self._session.findById("wnd[0]/tbar[1]/btn[8]").press()
         
         return Iw67NotesMainScreen(self._session, self._connection)
@@ -43,6 +45,12 @@ class Iw67Screen(Iw67ScreenInterface):
         self._connection.CloseSession('ses[0]')
 
     def back(self) -> None:
-        # self._session.findById("wnd[0]/tbar[0]/btn[3]").press()
-        # self._session.findById("wnd[1]/usr/btnSPOP-OPTION1").press()
-        self._session.findById("wnd[0]").sendVKey(3)
+        try:
+            self._session.findById("wnd[0]").sendVKey(3)
+            return
+        except:
+            pass
+        try:
+            self._session.findById("wnd[1]/tbar[0]/btn[0]").press()
+        except:
+            pass

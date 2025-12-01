@@ -1,6 +1,12 @@
 from lib.screen.SapLogonScreen import SapLogonScreen
 import pandas as pd
 import datetime
+from db.models import Base
+from db.config import engine
+from db.note_repo import NoteRepository
+from db.attach_repo import AttachmentRepository
+
+Base.metadata.create_all(engine)
 
 config_file_path = "config.txt"
 usuario = ""
@@ -22,6 +28,7 @@ ambiente_map = [
     {"region": "ES", "name": "CP1"},
 ]
 
+note_repo = NoteRepository()
 
 if __name__ == "__main__":
     print("SAP Module")
@@ -46,17 +53,55 @@ if __name__ == "__main__":
     iw67Screen.back()
     iw52Screen = home.openTransaction("iw52")
     for note_number in notes:
-        print(f"Processing Note Number: {note_number.get('nota')}")
-        try:
-            iw52NoteScreen = iw52Screen.openNote(note_number.get("nota"))
-        except Exception as e:
-            print(f"Error opening note {note_number.get('nota')}: {e}")
+        nota = note_repo.get_from_number(note_number.get("note_number"))
+        if nota:
+            print(f"Note {note_number.get('note_number')} already exists in the database. Skipping.")
             continue
-        attachments = iw52NoteScreen.get_attachments(download_files=False, folder_path_to_download=f"./attachments/{ambiente_selecionado}/{note_number.get('nota')}/")
+
+        print(f"Processing Note Number: {note_number.get('note_number')}")
+        
+        try:
+            iw52NoteScreen = iw52Screen.openNote(note_number.get("note_number"))
+            details = iw52NoteScreen.getNoteDetails()
+            nota = note_repo.create(
+                {
+                    "note_number": note_number.get("note_number"),
+                    "created_at": note_number.get("created_at"),
+                    "date": note_number.get("date"),
+                    "priority_text": note_number.get("priority_text"),
+                    "group": note_number.get("group"),
+                    "code_text": note_number.get("code_text"),
+                    "code_group_text": note_number.get("code_group_text"),
+                    "city": note_number.get("city"),
+                    "description": note_number.get("description"),
+                    "description_detail": details.get("description_text"),
+                    "business_partner_id": note_number.get("business_partner_id"),
+                    "email": details.get("contato_email"),
+                    "sms": details.get("contato_sms"),
+                    "cod_contact": details.get("cod_contato"),
+                }
+            )
+
+        except Exception as e:
+            print(f"Error opening note {note_number.get('note_number')}: {e}")
+            continue
+
+        attachments = iw52NoteScreen.get_attachments(download_files=False, folder_path_to_download=f"./attachments/{ambiente_selecionado}/{note_number.get('note_number')}/")
+        if attachments:
+            attach_repo = AttachmentRepository()
+            for attach in attachments:
+                try:
+                    attach_repo.create(
+                        note_id=nota.id,
+                        url=attach,
+                        created_at=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    )
+                    print(f"Attachment {attach} added to database.")
+                except Exception as e:
+                    print(f"Error adding attachment {attach} to database: {e}")
+        
         note_number['attachments'] = attachments
-        print(f"Note Number: {note_number}")
         iw52NoteScreen.back()
-        # break  # Remove this break to process all notes
     
     df = pd.DataFrame(notes)
     today_date = datetime.datetime.now().strftime("%Y%m%d")

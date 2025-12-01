@@ -1,5 +1,5 @@
 from win32com.client import CDispatch
-from lib.types.Note import Note
+from lib.types.NoteDetails import NoteDetails
 import requests
 import os
 
@@ -17,9 +17,9 @@ def download_attachment(url: str, folder_path, file_path: str) -> None:
         print(f"Failed to download attachment from {url}. Status code: {response.status_code}")
 
 class Iw52NoteMainScreenInterface:
-    def getNote(self) -> Note: pass
     def isOpen(self) -> bool: pass
     def get_attachments(self, download_files: bool, folder_path_to_download: str) -> list[str]: pass
+    def getNoteDetails(self) -> NoteDetails: pass
     def reOpenNote(self) -> None: pass
     def terminate(self) -> None: pass
     def back(self) -> None: pass
@@ -34,47 +34,6 @@ class Iw52NoteMainScreen(Iw52NoteMainScreenInterface):
         self._session = session
         self._connection = connection
         self._noteNumber = noteNumber
-
-    def __getComponentById(self, id: str) -> str | None:
-        componentInput = self._session.findById(id)
-        if componentInput:
-            return componentInput.text
-
-    def getNoteNumber(self) -> str | None:
-        return self.__getComponentById("wnd[0]/usr/subSCREEN_1:SAPLIQS0:1060/txtVIQMEL-QMNUM")
-
-    def getNoteType(self) -> str | None:
-         return self.__getComponentById("wnd[0]/usr/subSCREEN_1:SAPLIQS0:1060/ctxtVIQMEL-QMART")
-
-    def getNoteText(self) -> str | None:
-        return self.__getComponentById("wnd[0]/usr/subSCREEN_1:SAPLIQS0:1060/txtVIQMEL-QMTXT")
-
-    def getSystemStatus(self) -> str | None:
-        return self.__getComponentById("wnd[0]/usr/subSCREEN_1:SAPLIQS0:1060/txtRIWO00-STTXT")
-
-    def getUserStatus(self) -> str | None:
-        return self.__getComponentById("wnd[0]/usr/subSCREEN_1:SAPLIQS0:1060/txtRIWO00-ASTXT")
-
-    def getEquipamentNumber(self) -> str | None:
-        return self.__getComponentById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7322/subOBJEKT:SAPLIWO1:1200/ctxtRIWO1-EQUNR")
-
-    def getSerieNumber(self) -> str | None:
-        return self.__getComponentById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7322/subOBJEKT:SAPLIWO1:1200/ctxtRIWO1-SERIALNR")
-
-    def getMaterial(self) -> str | None:
-        return self.__getComponentById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7322/subOBJEKT:SAPLIWO1:1200/ctxtRIWO1-MATNR")
-
-    def getAffectedAnlage(self) -> str | None:
-        return self.__getComponentById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_2:SAPLIQS0:7318/ctxtVIQMEL-BTPLN")
-
-    def getDamageSympton(self) -> str | None:
-        return self.__getComponentById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_3:SAPLIQS0:7324/ctxtVIQMFE-FEGRP")
-
-    def getDamageCode(self) -> str | None:
-        return self.__getComponentById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_3:SAPLIQS0:7324/ctxtVIQMFE-FECOD")
-
-    def getItemText(self) -> str | None:
-        return self.__getComponentById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_3:SAPLIQS0:7324/txtVIQMFE-FETXT")
 
     def isOpen(self) -> bool:
         try:
@@ -120,22 +79,21 @@ class Iw52NoteMainScreen(Iw52NoteMainScreenInterface):
         return url_list
 
 
-    def getNote(self) -> Note:
-        self._session.findById("wnd[0]").maximize
+    def getNoteDetails(self) -> NoteDetails:
+        self._session.findById("wnd[0]").maximize()
+        descrption_text = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_2:SAPLIQS0:7715/cntlTEXT/shellcont/shell").text
+        self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21").select()
+        contato_email = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/txtW_WM_R12_DC-EMAIL").text
+        conato_sms = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/txtW_WM_R12_DC-TEL").text
+        cod_contato = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/ctxtW_WM_R12_DC-COD_RESP").text
+        self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB12").select()
+
         return {
-            "number": self.getNoteNumber(),
-            "type": self.getNoteType(),
-            "text": self.getNoteText(),
-            "systemStatus": self.getSystemStatus(),
-            "userStatus": self.getUserStatus(),
-            "equipamentNumber": self.getEquipamentNumber(),
-            "serieNumber": self.getSerieNumber(),
-            "material": self.getMaterial(),
-            "affectedAnlage": self.getAffectedAnlage(),
-            "damageSympton": self.getDamageSympton(),
-            "damageCode": self.getDamageCode(),
-            "itemText": self.getItemText(),
-            "isOpen": self.isOpen()
+            "number": self._noteNumber,
+            "description_text": descrption_text,
+            "contato_email": contato_email,
+            "contato_sms": conato_sms,
+            "cod_contato": cod_contato
         }
     
     def reOpenNote(self) -> None:

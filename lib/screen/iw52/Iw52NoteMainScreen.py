@@ -86,6 +86,7 @@ class Iw52NoteMainScreen(Iw52NoteMainScreenInterface):
         contato_email = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/txtW_WM_R12_DC-EMAIL").text
         conato_sms = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/txtW_WM_R12_DC-TEL").text
         cod_contato = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/ctxtW_WM_R12_DC-COD_RESP").text
+        inst = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/ctxtW_WM_R12_DC-ANLAGE").text
         self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB12").select()
 
         return {
@@ -93,7 +94,8 @@ class Iw52NoteMainScreen(Iw52NoteMainScreenInterface):
             "description_text": descrption_text,
             "contato_email": contato_email,
             "contato_sms": conato_sms,
-            "cod_contato": cod_contato
+            "cod_contato": cod_contato,
+            "inst": inst
         }
     
     def reOpenNote(self) -> None:

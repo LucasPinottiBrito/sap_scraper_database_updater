@@ -6,3 +6,4 @@ class NoteDetails(TypedDict):
     contato_email: str
     contato_sms: str
     cod_contato: str
+    inst: str

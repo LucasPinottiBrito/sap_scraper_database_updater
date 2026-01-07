@@ -30,7 +30,7 @@ class Iw67NotesMainScreen(Iw67NotesMainScreenInterface):
             return False
         return True
 
-    def getNotes(self) -> list[dict]:
+    def getNotes(self, note_type: str = None) -> list[dict]:
         try:
             self._session.findById("wnd[0]").maximize()
             mygrid = self._session.findById("wnd[0]/usr/cntlGRID1/shellcont/shell")
@@ -39,20 +39,52 @@ class Iw67NotesMainScreen(Iw67NotesMainScreenInterface):
             for i in range(row_count):
                 nota = mygrid.GetCellValue(i, "QMNUM")
                 criado_em = mygrid.GetCellValue(i, "ERDAT")
-                data_nota = mygrid.GetCellValue(i, "QMDAT")
-                conclu_desejada = mygrid.GetCellValue(i, "LTRMN")
-                textPrioridade = mygrid.GetCellValue(i, "PRIOKX")
-                texto_de_grupo_de_codificacao = mygrid.GetCellValue(i, "KTXTCD")
-                texto_de_code_medida = mygrid.GetCellValue(i, "SMCODETEXT")
+                
+                try: data_conclusao = mygrid.GetCellValue(i, "PETER")
+                except: data_conclusao = ""
+
+                try: data_nota = mygrid.GetCellValue(i, "QMDAT") 
+                except: data_nota = ""
+                
+                try: conclu_desejada = mygrid.GetCellValue(i, "LTRMN")
+                except: conclu_desejada = ""
+
+                try: textPrioridade = mygrid.GetCellValue(i, "PRIOKX")
+                except: textPrioridade = ""
+
+                try: texto_de_grupo_de_codificacao = mygrid.GetCellValue(i, "KTXTCD")
+                except: texto_de_grupo_de_codificacao = ""
+                
+                try: texto_de_code_medida = mygrid.GetCellValue(i, "SMCODETEXT")
+                except: texto_de_code_medida = ""
 
                 # texto_de_code_grupo_medida = mygrid.GetCellValue(i, "SMGRPTEXT")
                 texto_de_code_grupo_medida = ""
-                cidade = mygrid.GetCellValue(i, "CITY1")
-                descricao = mygrid.GetCellValue(i, "QMTXT")
-                pn = mygrid.GetCellValue(i, "KUNUM")
+
+                try: cidade = mygrid.GetCellValue(i, "CITY1")
+                except: cidade = ""
+
+                try: descricao = mygrid.GetCellValue(i, "QMTXT")
+                except: descricao = ""
+
+                try: pn = mygrid.GetCellValue(i, "KUNUM")
+                except: pn = ""
+
+                note_type_dictionary = {
+                    "REC": "Recurso",
+                    "PRC": "Procon",
+                    "SC/RC": "Solicitacao",
+                    "OVD": "Ouvidoria"
+                }
+                if note_type:
+                    tipo_nota = note_type_dictionary.get(note_type, "")
+                else:
+                    tipo_nota = ""
+
                 table_content.append({
                     "note_number": nota,
                     "created_at": criado_em,
+                    "conclusion_date": data_conclusao if data_conclusao else conclu_desejada,
                     "date": data_nota,
                     "priority_text": textPrioridade,
                     "group": texto_de_grupo_de_codificacao,
@@ -60,7 +92,8 @@ class Iw67NotesMainScreen(Iw67NotesMainScreenInterface):
                     "code_group_text": texto_de_code_grupo_medida,
                     "city": cidade,
                     "description": descricao,
-                    "business_partner_id": pn
+                    "business_partner_id": pn,
+                    "note_type": tipo_nota
                 })
                 print(f"Nota: {nota}, Criado em: {criado_em}, Concl.desejada: {conclu_desejada}, TextPrioridade: {textPrioridade}, Texto de grupo de codificação: {texto_de_grupo_de_codificacao}, Texto de code medida: {texto_de_code_medida}, Cidade: {cidade}, Descrição: {descricao}")
             self.back()

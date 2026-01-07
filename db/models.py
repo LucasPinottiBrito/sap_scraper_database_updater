@@ -23,10 +23,6 @@ class Note(Base):
     sms = Column(String(255), nullable=True)
     cod_contact = Column(String(2), nullable=True)
 
-    # attachments = relationship(
-    #     "sapAutoTAttachments", back_populates="sapAutoTPendingNotes", cascade="all, delete-orphan"
-    # )
-
     def to_dict(self):
         return {
             "id": self.id,
@@ -53,7 +49,6 @@ class Attachment(Base):
     url = Column(String(1024), nullable=False)
     created_at = Column(String(255), nullable=True)
 
-    # note = relationship("sapAutoTPendingNotes", back_populates="sapAutoTAttachments")
 
     def to_dict(self):
         return {

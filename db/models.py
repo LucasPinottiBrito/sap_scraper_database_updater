@@ -9,14 +9,12 @@ class Note(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     note_number = Column(String(255), nullable=True)
     created_at = Column(String(255), nullable=True)
-    date = Column(String(255), nullable=True)
     priority_text = Column(String(255), nullable=True)
     group_ = Column("group", String(255), nullable=True)
     code_text = Column(String(255), nullable=True)
-    code_group_text = Column(String(255), nullable=True)
     city = Column(String(255), nullable=True)
     description = Column(String(1024), nullable=True)
-    description_detail = Column(String(4096), nullable=True)
+    description_detail = Column(String, nullable=True)
     business_partner_id = Column(String(255), nullable=True)
     inst = Column(String(255), nullable=True)
     email = Column(String(255), nullable=True)
@@ -28,11 +26,9 @@ class Note(Base):
             "id": self.id,
             "note_number": self.note_number,
             "created_at": self.created_at,
-            "date": self.date,
             "priority_text": self.priority_text,
             "group": self.group_,
             "code_text": self.code_text,
-            "code_group_text": self.code_group_text,
             "city": self.city,
             "description": self.description,
             "description_detail": self.description_detail,

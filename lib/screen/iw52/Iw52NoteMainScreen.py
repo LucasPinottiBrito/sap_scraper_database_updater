@@ -1,3 +1,4 @@
+from typing import Literal
 from win32com.client import CDispatch
 from lib.types.NoteDetails import NoteDetails
 import requests
@@ -45,7 +46,6 @@ class Iw52NoteMainScreen(Iw52NoteMainScreenInterface):
         return True
 
     def get_attachments(self, download_files: bool, folder_path_to_download = '') -> list[str]:
-        self._session.findById("wnd[0]").sendVKey(0)
         self._session.findById("wnd[0]/titl/shellcont/shell").pressButton("%GOS_TOOLBOX")
         self._session.findById("wnd[1]/usr/tblSAPLSWUGOBJECT_CONTROL").getAbsoluteRow(0).selected = True
         self._session.findById("wnd[1]").sendVKey(0)
@@ -79,24 +79,43 @@ class Iw52NoteMainScreen(Iw52NoteMainScreenInterface):
         return url_list
 
 
-    def getNoteDetails(self) -> NoteDetails:
-        self._session.findById("wnd[0]").maximize()
-        descrption_text = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_2:SAPLIQS0:7715/cntlTEXT/shellcont/shell").text
-        self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21").select()
-        contato_email = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/txtW_WM_R12_DC-EMAIL").text
-        conato_sms = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/txtW_WM_R12_DC-TEL").text
-        cod_contato = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/ctxtW_WM_R12_DC-COD_RESP").text
-        inst = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/ctxtW_WM_R12_DC-ANLAGE").text
-        self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB12").select()
+    def getNoteDetails(self, note_model: Literal["CI", "NA"] = "NA") -> NoteDetails:
+        match note_model:
+            case "NA":
+                self._session.findById("wnd[0]").maximize()
+                descrption_text = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_2:SAPLIQS0:7715/cntlTEXT/shellcont/shell").text
+                self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21").select()
+                contato_email = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/txtW_WM_R12_DC-EMAIL").text
+                conato_sms = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/txtW_WM_R12_DC-TEL").text
+                cod_contato = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/ctxtW_WM_R12_DC-COD_RESP").text
+                inst = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/ctxtW_WM_R12_DC-ANLAGE").text
+                self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB12").select()
 
-        return {
-            "number": self._noteNumber,
-            "description_text": descrption_text,
-            "contato_email": contato_email,
-            "contato_sms": conato_sms,
-            "cod_contato": cod_contato,
-            "inst": inst
-        }
+                return {
+                    "number": self._noteNumber,
+                    "description_text": descrption_text,
+                    "contato_email": contato_email,
+                    "contato_sms": conato_sms,
+                    "cod_contato": cod_contato,
+                    "inst": inst
+                }
+            case "CI":
+                self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB09").select()
+                self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB09/ssubSUB_GROUP_10:SAPLIQS0:7217/subSUBSCREEN_1:SAPLIQS0:7790/subUSER0001:SAPLXQQM:0101/btnBTTOI").press()
+                inst = self._session.findById("wnd[0]/usr/ctxtZCCSTBI_FR_TOI-ANLAGE").text
+                self._session.findById("wnd[0]/tbar[0]/btn[3]").press()
+                try:
+                    self._session.findById("wnd[1]/usr/btnSPOP-VAROPTION1").press()
+                except:
+                    pass
+                return {
+                    "number": self._noteNumber,
+                    "description_text": "",
+                    "contato_email": "",
+                    "contato_sms": "",
+                    "cod_contato": "",
+                    "inst": inst
+                }
     
     def reOpenNote(self) -> None:
         self._session.findById("wnd[0]").maximize

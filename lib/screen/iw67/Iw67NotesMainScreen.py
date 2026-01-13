@@ -42,9 +42,6 @@ class Iw67NotesMainScreen(Iw67NotesMainScreenInterface):
                 
                 try: data_conclusao = mygrid.GetCellValue(i, "PETER")
                 except: data_conclusao = ""
-
-                try: data_nota = mygrid.GetCellValue(i, "QMDAT") 
-                except: data_nota = ""
                 
                 try: conclu_desejada = mygrid.GetCellValue(i, "LTRMN")
                 except: conclu_desejada = ""
@@ -57,9 +54,6 @@ class Iw67NotesMainScreen(Iw67NotesMainScreenInterface):
                 
                 try: texto_de_code_medida = mygrid.GetCellValue(i, "SMCODETEXT")
                 except: texto_de_code_medida = ""
-
-                # texto_de_code_grupo_medida = mygrid.GetCellValue(i, "SMGRPTEXT")
-                texto_de_code_grupo_medida = ""
 
                 try: cidade = mygrid.GetCellValue(i, "CITY1")
                 except: cidade = ""
@@ -85,11 +79,9 @@ class Iw67NotesMainScreen(Iw67NotesMainScreenInterface):
                     "note_number": nota,
                     "created_at": criado_em,
                     "conclusion_date": data_conclusao if data_conclusao else conclu_desejada,
-                    "date": data_nota,
                     "priority_text": textPrioridade,
                     "group": texto_de_grupo_de_codificacao,
                     "code_text": texto_de_code_medida,
-                    "code_group_text": texto_de_code_grupo_medida,
                     "city": cidade,
                     "description": descricao,
                     "business_partner_id": pn,

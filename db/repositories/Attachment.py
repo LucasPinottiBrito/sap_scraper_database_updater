@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-from .config import get_session
-from .models import Note, Attachment
+from db.config import get_session
+from db.models import Note, Attachment
 
 class AttachmentRepository:
     def __init__(self, session: Optional[Session] = None):

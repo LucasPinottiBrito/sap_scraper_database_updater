@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, DateTime, Integer, String, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -53,3 +53,12 @@ class Attachment(Base):
             "url": self.url,
             "created_at": self.created_at,
         }
+
+class UpdateJob(Base):
+    __tablename__ = "sapAutoTUpdateJobs"
+
+    id = Column(Integer, primary_key=True)
+    status = Column(String(20), nullable=False)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    error_message = Column(String, nullable=True)

@@ -1,8 +1,8 @@
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import delete, insert
-from .config import get_session
-from .tables import NotasAbertasTable
+from db.config import get_session
+from db.tables import NotasAbertasTable
 
 
 class BIEntityRepository:
@@ -11,10 +11,6 @@ class BIEntityRepository:
         self._close = session is None
 
     def replace_all(self, entities: List[Dict[str, Any]]) -> None:
-        """
-        Substitui completamente os dados da tabela Satisfacao.NotasAbertas
-        por um novo conjunto (ex: SAP).
-        """
 
         try:
             # DELETE total

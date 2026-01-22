@@ -1,18 +1,18 @@
+from db.repositories.TablesUpdatedAt import TablesUpdatedAtRepository
 from lib.screen.SapLogonScreen import SapLogonScreen
 import pandas as pd
 import datetime
-from db.models import Base
-from db.config import engine
 from db.repositories.Note import NoteRepository
 from db.repositories.BIEntity import BIEntityRepository
 from db.repositories.Attachment import AttachmentRepository
 from db.repositories.UpdateJob import UpdateJobRepository
-
  
 config_file_path = "config.txt"
 usuario = ""
 senha = ""
 ambiente = ""
+
+updated_at_repo = TablesUpdatedAtRepository()
 
 try:
     config = open(config_file_path, mode='rb')
@@ -92,6 +92,7 @@ def save_note_details_and_attachments(ambiente_selecionado: str, regiao_selecion
                     "inst": details.get("inst")
                 }
             )
+            updated_at_repo.update_table_timestamp("sapAutoTPendingNotes")
 
         except Exception as e:
             print(f"Error opening note {note_number.get('note_number')}: {e}")
@@ -107,6 +108,7 @@ def save_note_details_and_attachments(ambiente_selecionado: str, regiao_selecion
                         url=attach,
                         created_at=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     )
+                    updated_at_repo.update_table_timestamp("sapAutoTAttachments")
                     print(f"Attachment {attach} added to database.")
                 except Exception as e:
                     print(f"Error adding attachment {attach} to database: {e}")
@@ -175,5 +177,6 @@ def run_sap_update():
     replace_notes = all_notes.to_dict(orient='records')
     bi_entity_repo = BIEntityRepository()
     bi_entity_repo.replace_all(replace_notes)
+    updated_at_repo.update_table_timestamp("NotasAbertasTable")
 
     print("Process completed.")

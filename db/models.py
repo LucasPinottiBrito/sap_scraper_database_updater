@@ -57,8 +57,14 @@ class Attachment(Base):
 class UpdateJob(Base):
     __tablename__ = "sapAutoTUpdateJobs"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     status = Column(String(20), nullable=False)
     started_at = Column(DateTime, nullable=True)
     finished_at = Column(DateTime, nullable=True)
     error_message = Column(String, nullable=True)
+
+class TablesUpdatedAt(Base):
+    __tablename__ = "sapAutoTTablesUpdatedAt"
+
+    table_name = Column(String(255), primary_key=True)
+    updated_at = Column(DateTime, nullable=False)

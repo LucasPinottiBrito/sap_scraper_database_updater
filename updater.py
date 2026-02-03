@@ -6,22 +6,21 @@ from db.repositories.Note import NoteRepository
 from db.repositories.BIEntity import BIEntityRepository
 from db.repositories.Attachment import AttachmentRepository
 from db.repositories.UpdateJob import UpdateJobRepository
- 
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 config_file_path = "config.txt"
-usuario = ""
-senha = ""
+usuario = os.getenv("SAP_USER", "")
+senha = os.getenv("SAP_PASSWORD_EP1", "")
+senha_ep2 = os.getenv("SAP_PASSWORD_EP2", "")
 ambiente = ""
 
 updated_at_repo = TablesUpdatedAtRepository()
 
-try:
-    config = open(config_file_path, mode='rb')
-    usuario = config.readline().decode('utf-8').strip() or ""
-    senha = config.readline().decode('utf-8').strip() or ""
-except FileNotFoundError:
-    print(f"Configuration file not found at {config_file_path}. Please create the file with the required parameters.")
 
-def get_notes_from_environment(ambiente_selecionado: str, regiao_selecionada: str) -> pd.DataFrame:
+def get_notes_from_environment(ambiente_selecionado: str, regiao_selecionada: str, senha) -> pd.DataFrame:
     logon = SapLogonScreen()
     login = logon.loadSystem(regiao_selecionada, ambiente_selecionado)
     home = login.login(usuario, senha, regiao_selecionada, ambiente_selecionado)
@@ -57,7 +56,7 @@ def get_notes_from_environment(ambiente_selecionado: str, regiao_selecionada: st
 
     return df
 
-def save_note_details_and_attachments(ambiente_selecionado: str, regiao_selecionada: str, notes: list):
+def save_note_details_and_attachments(ambiente_selecionado: str, regiao_selecionada: str, notes: list, senha: str):
     logon = SapLogonScreen()
     login = logon.loadSystem(regiao_selecionada, ambiente_selecionado)
     home = login.login(usuario, senha, regiao_selecionada, ambiente_selecionado)
@@ -128,14 +127,14 @@ def run_sap_update_with_job(job_id: int):
             raise Exception("Job não está marcado como RUNNING")
 
         print("SP")
-        sp_notes = get_notes_from_environment("EP1", "SP")
+        sp_notes = get_notes_from_environment("EP1", "SP", senha)
         sp_notes["region"] = "SP"
-        save_note_details_and_attachments("EP1", "SP", sp_notes.to_dict(orient='records'))
+        save_note_details_and_attachments("EP1", "SP", sp_notes.to_dict(orient='records'), senha)
         
         print("ES")
-        es_notes = get_notes_from_environment("EP2", "ES")
+        es_notes = get_notes_from_environment("EP2", "ES", senha_ep2)
         es_notes["region"] = "ES"
-        save_note_details_and_attachments("EP2", "ES", es_notes.to_dict(orient='records'))
+        save_note_details_and_attachments("EP2", "ES", es_notes.to_dict(orient='records'), senha_ep2)
 
         all_notes = pd.concat([sp_notes, es_notes], ignore_index=True)
         all_notes.rename(columns={"note_type": "TipoNota"}, inplace=True)
@@ -158,14 +157,14 @@ def run_sap_update_with_job(job_id: int):
 
 def run_sap_update():
     print("SP")
-    sp_notes = get_notes_from_environment("EP1", "SP")
+    sp_notes = get_notes_from_environment("EP1", "SP", senha)
     sp_notes["region"] = "SP"
-    save_note_details_and_attachments("EP1", "SP", sp_notes.to_dict(orient='records'))
+    save_note_details_and_attachments("EP1", "SP", sp_notes.to_dict(orient='records'), senha)
     
     print("ES")
-    es_notes = get_notes_from_environment("EP2", "ES")
+    es_notes = get_notes_from_environment("EP2", "ES", senha_ep2)
     es_notes["region"] = "ES"
-    save_note_details_and_attachments("EP2", "ES", es_notes.to_dict(orient='records'))
+    save_note_details_and_attachments("EP2", "ES", es_notes.to_dict(orient='records'), senha_ep2)
 
     all_notes = pd.concat([sp_notes, es_notes], ignore_index=True)
     all_notes.rename(columns={"note_type": "TipoNota"}, inplace=True)

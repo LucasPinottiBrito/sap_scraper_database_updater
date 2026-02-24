@@ -9,6 +9,7 @@ class Note(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     note_number = Column(String(255), nullable=True)
     created_at = Column(String(255), nullable=True)
+    conclusion_date = Column(String(255), nullable=True)
     priority_text = Column(String(255), nullable=True)
     group_ = Column("group", String(255), nullable=True)
     code_text = Column(String(255), nullable=True)
@@ -26,6 +27,7 @@ class Note(Base):
             "id": self.id,
             "note_number": self.note_number,
             "created_at": self.created_at,
+            "conclusion_date": self.conclusion_date,
             "priority_text": self.priority_text,
             "group": self.group_,
             "code_text": self.code_text,

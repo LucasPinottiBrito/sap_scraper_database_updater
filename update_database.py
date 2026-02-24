@@ -56,6 +56,36 @@ def get_notes_from_environment(ambiente_selecionado: str, regiao_selecionada: st
 
     return df
 
+def get_notes_details_and_attachments(ambiente_selecionado: str, regiao_selecionada: str, notes: list, senha: str) -> list:
+    logon = SapLogonScreen()
+    login = logon.loadSystem(regiao_selecionada, ambiente_selecionado)
+    home = login.login(usuario, senha, regiao_selecionada, ambiente_selecionado)
+    iw52Screen = home.openTransaction("iw52")
+    for note_number in notes:
+        print(f"Processing Note Number: {note_number.get('note_number')}")
+        
+        try:
+            iw52NoteScreen = iw52Screen.openNote(note_number.get("note_number"))
+            note_model = "CI" if note_number.get("note_type") == "Recurso" else "NA"
+            details = iw52NoteScreen.getNoteDetails(note_model=note_model)
+            note_number['description_detail'] = details.get("description_text")
+            note_number['email'] = details.get("contato_email")
+            note_number['sms'] = details.get("contato_sms")
+            note_number['cod_contact'] = details.get("cod_contato")
+            note_number['inst'] = details.get("inst")
+        except Exception as e:
+            print(f"Error opening note {note_number.get('note_number')}: {e}")
+            continue
+        
+        attachments = iw52NoteScreen.get_attachments(download_files=False, folder_path_to_download=f"./attachments/{ambiente_selecionado}/{note_number.get('note_number')}/")
+        note_number['attachments'] = attachments
+        iw52NoteScreen.back()
+
+    df = pd.DataFrame(notes)
+    iw52Screen.close()
+
+    return df
+
 def save_note_details_and_attachments(ambiente_selecionado: str, regiao_selecionada: str, notes: list, senha: str):
     logon = SapLogonScreen()
     login = logon.loadSystem(regiao_selecionada, ambiente_selecionado)
@@ -78,6 +108,7 @@ def save_note_details_and_attachments(ambiente_selecionado: str, regiao_selecion
                 {
                     "note_number": note_number.get("note_number"),
                     "created_at": note_number.get("created_at"),
+                    "conclusion_date": note_number.get("conclusion_date"),
                     "priority_text": note_number.get("priority_text"),
                     "group": note_number.get("note_type"),
                     "code_text": note_number.get("code_text"),
@@ -116,66 +147,24 @@ def save_note_details_and_attachments(ambiente_selecionado: str, regiao_selecion
         iw52NoteScreen.back()
 
     iw52Screen.close()
-    
 
-def run_sap_update_with_job(job_id: int):
-    job_repo = UpdateJobRepository()
-    
-    try:
-        # 🔒 Proteção extra (caso alguém tente rodar manualmente)
-        if job_repo.exists_running_job() is False:
-            raise Exception("Job não está marcado como RUNNING")
 
-        print("SP")
-        sp_notes = get_notes_from_environment("EP1", "SP", senha)
-        sp_notes["region"] = "SP"
-        save_note_details_and_attachments("EP1", "SP", sp_notes.to_dict(orient='records'), senha)
-        
-        print("ES")
-        es_notes = get_notes_from_environment("EP2", "ES", senha_ep2)
-        es_notes["region"] = "ES"
-        save_note_details_and_attachments("EP2", "ES", es_notes.to_dict(orient='records'), senha_ep2)
-
-        all_notes = pd.concat([sp_notes, es_notes], ignore_index=True)
-        all_notes.rename(columns={"note_type": "TipoNota"}, inplace=True)
-        all_notes.rename(columns={"note_number": "NotaSAP"}, inplace=True)
-        all_notes.rename(columns={"created_at": "DataCriacao"}, inplace=True)
-        all_notes.rename(columns={"conclusion_date": "ConclusaoDesejada"} , inplace=True)
-        all_notes.rename(columns={"region": "Estado"} , inplace=True)
-
-        replace_notes = all_notes.to_dict(orient='records')
-        bi_entity_repo = BIEntityRepository()
-        bi_entity_repo.replace_all(replace_notes)
-
-        print("Process completed.")
-
-        job_repo.mark_success(job_id)
-
-    except Exception as e:
-        job_repo.mark_error(job_id, str(e))
-        raise
-
-def run_sap_update():
+def run_database_update():
     print("SP")
     sp_notes = get_notes_from_environment("EP1", "SP", senha)
+    sp_notes = get_notes_details_and_attachments("EP1", "SP", sp_notes.to_dict(orient='records'), senha)
     sp_notes["region"] = "SP"
-    save_note_details_and_attachments("EP1", "SP", sp_notes.to_dict(orient='records'), senha)
     
     print("ES")
     es_notes = get_notes_from_environment("EP2", "ES", senha_ep2)
+    es_notes = get_notes_details_and_attachments("EP2", "ES", es_notes.to_dict(orient='records'), senha_ep2)
     es_notes["region"] = "ES"
-    save_note_details_and_attachments("EP2", "ES", es_notes.to_dict(orient='records'), senha_ep2)
 
     all_notes = pd.concat([sp_notes, es_notes], ignore_index=True)
-    all_notes.rename(columns={"note_type": "TipoNota"}, inplace=True)
-    all_notes.rename(columns={"note_number": "NotaSAP"}, inplace=True)
-    all_notes.rename(columns={"created_at": "DataCriacao"}, inplace=True)
-    all_notes.rename(columns={"conclusion_date": "ConclusaoDesejada"} , inplace=True)
-    all_notes.rename(columns={"region": "Estado"} , inplace=True)
+    save_note_details_and_attachments("EP1", "SP", sp_notes.to_dict(orient='records'), senha)
+    save_note_details_and_attachments("EP2", "ES", es_notes.to_dict(orient='records'), senha_ep2)
 
-    replace_notes = all_notes.to_dict(orient='records')
-    bi_entity_repo = BIEntityRepository()
-    bi_entity_repo.replace_all(replace_notes)
-    updated_at_repo.update_table_timestamp("NotasAbertasTable")
+    notes_repo = NoteRepository()
+    notes_repo.delete_all(notes_to_keep=all_notes.get("note_number").tolist())
 
     print("Process completed.")

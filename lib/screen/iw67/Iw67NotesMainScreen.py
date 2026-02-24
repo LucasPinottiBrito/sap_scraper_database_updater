@@ -77,8 +77,8 @@ class Iw67NotesMainScreen(Iw67NotesMainScreenInterface):
 
                 table_content.append({
                     "note_number": nota,
-                    "created_at": criado_em,
-                    "conclusion_date": data_conclusao if data_conclusao else conclu_desejada,
+                    "created_at": criado_em.replace(".", "-").replace("/", "-") if criado_em != "" else "",
+                    "conclusion_date": (data_conclusao or conclu_desejada).replace(".", "-").replace("/", "-") if (data_conclusao or conclu_desejada) != "" else "",
                     "priority_text": textPrioridade,
                     "group": texto_de_grupo_de_codificacao,
                     "code_text": texto_de_code_medida,

@@ -59,6 +59,13 @@ class NoteRepository:
         self.session.delete(note)
         self.session.commit()
 
+    def delete_all(self, notes_to_keep: List[str] = None) -> None:
+        if notes_to_keep:
+            self.session.query(Note).filter(~Note.note_number.in_(notes_to_keep)).delete(synchronize_session=False)
+        else:
+            self.session.query(Note).delete()
+        self.session.commit()
+
     def __del__(self):
         if self._close:
             self.session.close()

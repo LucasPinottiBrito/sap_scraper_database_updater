@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import List, Literal
 from win32com.client import CDispatch
 from lib.types.NoteDetails import NoteDetails
 import requests
@@ -45,7 +45,7 @@ class Iw52NoteMainScreen(Iw52NoteMainScreenInterface):
             return False
         return True
 
-    def get_attachments(self, download_files: bool, folder_path_to_download = '') -> list[str]:
+    def get_attachments(self, download_files: bool, folder_path_to_download = '') -> List[str]:
         self._session.findById("wnd[0]/titl/shellcont/shell").pressButton("%GOS_TOOLBOX")
         self._session.findById("wnd[1]/usr/tblSAPLSWUGOBJECT_CONTROL").getAbsoluteRow(0).selected = True
         self._session.findById("wnd[1]").sendVKey(0)
@@ -133,13 +133,17 @@ class Iw52NoteMainScreen(Iw52NoteMainScreenInterface):
     def back(self) -> None:
         try:
             self._session.findById("wnd[0]").sendVKey(3)
-            return
         except:
             pass
         try:
             self._session.findById("wnd[1]/tbar[0]/btn[0]").press()
         except:
             pass
+        try:
+            self._session.findById("wnd[1]/usr/btnSPOP-OPTION2").press()
+        except:
+            pass
+        return
 
     def close(self) -> None:
         self._connection.CloseSession('ses[0]')

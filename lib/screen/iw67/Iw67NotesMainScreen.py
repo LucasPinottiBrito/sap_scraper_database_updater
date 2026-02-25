@@ -1,5 +1,12 @@
 from win32com.client import CDispatch
 
+note_type_dictionary = {
+    "REC": "Recurso",
+    "PRC": "Procon",
+    "SC/RC": "Solicitacao",
+    "OVD": "Ouvidoria"
+}
+
 class Iw67NotesMainScreenInterface:
     def getNotes(self) -> list[dict]: pass
     def isOpen(self) -> bool: pass
@@ -35,17 +42,30 @@ class Iw67NotesMainScreen(Iw67NotesMainScreenInterface):
             self._session.findById("wnd[0]").maximize()
             mygrid = self._session.findById("wnd[0]/usr/cntlGRID1/shellcont/shell")
             row_count = mygrid.RowCount
+            
             table_content = []
+            
+            if note_type:
+                tipo_nota = note_type_dictionary.get(note_type, "")
+            else:
+                tipo_nota = ""
+
             for i in range(row_count):
                 nota = mygrid.GetCellValue(i, "QMNUM")
                 criado_em = mygrid.GetCellValue(i, "ERDAT")
-                
-                try: data_conclusao = mygrid.GetCellValue(i, "PETER")
-                except: data_conclusao = ""
-                
-                try: conclu_desejada = mygrid.GetCellValue(i, "LTRMN")
-                except: conclu_desejada = ""
 
+                try: 
+                    data_conclusao = mygrid.GetCellValue(i, "PETER")
+                    data_conclusao = data_conclusao.replace(".", "-").replace("/", "-")
+                except: 
+                    data_conclusao = ""
+                
+                try: 
+                    conclu_desejada = mygrid.GetCellValue(i, "LTRMN")
+                    conclu_desejada = conclu_desejada.replace(".", "-").replace("/", "-")
+                except: 
+                    conclu_desejada = ""
+        
                 try: textPrioridade = mygrid.GetCellValue(i, "PRIOKX")
                 except: textPrioridade = ""
 
@@ -64,21 +84,10 @@ class Iw67NotesMainScreen(Iw67NotesMainScreenInterface):
                 try: pn = mygrid.GetCellValue(i, "KUNUM")
                 except: pn = ""
 
-                note_type_dictionary = {
-                    "REC": "Recurso",
-                    "PRC": "Procon",
-                    "SC/RC": "Solicitacao",
-                    "OVD": "Ouvidoria"
-                }
-                if note_type:
-                    tipo_nota = note_type_dictionary.get(note_type, "")
-                else:
-                    tipo_nota = ""
-
                 table_content.append({
                     "note_number": nota,
                     "created_at": criado_em.replace(".", "-").replace("/", "-") if criado_em != "" else "",
-                    "conclusion_date": (data_conclusao or conclu_desejada).replace(".", "-").replace("/", "-") if (data_conclusao or conclu_desejada) != "" else "",
+                    "conclusion_date": (data_conclusao or conclu_desejada),
                     "priority_text": textPrioridade,
                     "group": texto_de_grupo_de_codificacao,
                     "code_text": texto_de_code_medida,

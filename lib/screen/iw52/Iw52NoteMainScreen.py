@@ -60,8 +60,14 @@ class Iw52NoteMainScreen(Iw52NoteMainScreenInterface):
         for i in range(row_count):
             grid.selectedRows = str(i)
             grid.pressToolbarButton("%ATTA_EDIT")
-            filename = f'{str(i)}_{self._session.findById("wnd[1]/usr/txtSOS17-S_URL_DESC").text}'
-            url = self._session.findById("wnd[1]/usr/txtSOS17-S_URL_KEY").text
+            try:
+                filename = f'{str(i)}_{self._session.findById("wnd[1]/usr/txtSOS17-S_URL_DESC").text}'
+                url = self._session.findById("wnd[1]/usr/txtSOS17-S_URL_KEY").text
+            except:
+                self._session.findById("wnd[2]").close()
+                filename = f'error_attachment'
+                url = ''
+                print(f"Error retrieving attachment details for row {i}. Skipping download.")
             
             folder_path = folder_path_to_download or f"./attachments/{self._noteNumber}/"
             if download_files:

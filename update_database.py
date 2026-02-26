@@ -119,7 +119,8 @@ def save_note_details_and_attachments(ambiente_selecionado: str, regiao_selecion
                     "email": details.get("contato_email"),
                     "sms": details.get("contato_sms"),
                     "cod_contact": details.get("cod_contato"),
-                    "inst": details.get("inst")
+                    "inst": details.get("inst"),
+                    "region": regiao_selecionada,
                 }
             )
             updated_at_repo.update_table_timestamp("sapAutoTPendingNotes")

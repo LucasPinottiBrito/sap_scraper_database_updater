@@ -24,6 +24,8 @@ class Iw67Screen(Iw67ScreenInterface):
             case "SC/RC":
                 if region == "SP":
                     self._session.findById("wnd[0]/tbar[1]/btn[17]").press()
+                    self._session.findById("wnd[1]/usr/txtV-LOW").setFocus()
+                    self._session.findById("wnd[1]/usr/txtV-LOW").caretPosition = 0
                     self._session.findById("wnd[1]/usr/txtV-LOW").text = "CONSIRREGULAR"
                     self._session.findById("wnd[1]/usr/txtENAME-LOW").text = ""
                     self._session.findById("wnd[1]/usr/txtENAME-LOW").setFocus()

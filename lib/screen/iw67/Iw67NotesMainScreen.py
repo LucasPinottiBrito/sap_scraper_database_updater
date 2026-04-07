@@ -81,8 +81,17 @@ class Iw67NotesMainScreen(Iw67NotesMainScreenInterface):
                 try: descricao = mygrid.GetCellValue(i, "QMTXT")
                 except: descricao = ""
 
+                try: code = mygrid.GetCellValue(i, "QMCOD")
+                except: code = ""
+
                 try: pn = mygrid.GetCellValue(i, "KUNUM")
                 except: pn = ""
+
+                try:
+                    if note_type == "SC/RC":
+                        tipo_nota = "Reclamacao" if "RC" in code else "Solicitacao"
+                except:
+                    pass
 
                 table_content.append({
                     "note_number": nota,

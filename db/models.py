@@ -75,3 +75,29 @@ class TablesUpdatedAt(Base):
 
     table_name = Column(String(255), primary_key=True)
     updated_at = Column(DateTime, nullable=False)
+
+class SAPActionQueue(Base):
+    __tablename__ = "sapAutoTActionQueue"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    registration = Column(String(255), nullable=False)
+    action = Column(String(255), nullable=False)
+    note = Column(String(1024), nullable=True)
+    region = Column(String(2), nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    status = Column(String(50), nullable=False, default="pendente")
+    conclusion_date = Column(DateTime, nullable=True)
+    error_message = Column(String, nullable=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "registration": self.registration,
+            "action": self.action,
+            "note": self.note,
+            "region": self.region,
+            "created_at": self.created_at,
+            "status": self.status,
+            "conclusion_date": self.conclusion_date,
+            "error_message": self.error_message,
+        }

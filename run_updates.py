@@ -150,6 +150,7 @@ def enrich_notes_with_details(
                 note["sms"] = details.get("contato_sms", "")
                 note["cod_contact"] = details.get("cod_contato", "")
                 note["inst"] = details.get("inst", "")
+                note["nome_cliente"] = details.get("nome_cliente", "")
                 
                 # Obter anexos
                 attachments = iw52NoteScreen.get_attachments(
@@ -167,6 +168,7 @@ def enrich_notes_with_details(
                 note["sms"] = ""
                 note["cod_contact"] = ""
                 note["inst"] = ""
+                note["nome_cliente"] = ""
                 note["attachments"] = []
                 enriched_notes.append(note)
                 print(f"    ⚠ Erro ao enriquecer nota {note_number}: {e}")
@@ -241,6 +243,7 @@ def persist_notes_to_database(regiao: str, notas_df: pd.DataFrame) -> None:
                     "cod_contact": nota_dict.get("cod_contact", ""),
                     "inst": nota_dict.get("inst", ""),
                     "region": regiao,
+                    "nome_cliente": nota_dict.get("nome_cliente", ""),
                 }
             )
 

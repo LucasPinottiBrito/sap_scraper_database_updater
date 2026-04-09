@@ -22,6 +22,7 @@ class Note(Base):
     sms = Column(String(255), nullable=True)
     cod_contact = Column(String(2), nullable=True)
     region = Column(String(2), nullable=True)
+    nome_cliente = Column(String(255), nullable=True)
 
     def to_dict(self):
         return {
@@ -41,6 +42,7 @@ class Note(Base):
             "sms": self.sms,
             "cod_contact": self.cod_contact,
             "region": self.region,
+            "nome_cliente": self.nome_cliente, 
         }
 
 

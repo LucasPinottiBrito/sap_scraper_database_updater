@@ -95,17 +95,23 @@ class Iw52NoteMainScreen(Iw52NoteMainScreenInterface):
                 conato_sms = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/txtW_WM_R12_DC-TEL").text
                 cod_contato = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/ctxtW_WM_R12_DC-COD_RESP").text
                 inst = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB21/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7900/subUSER0001:SAPLXQQM:0590/ctxtW_WM_R12_DC-ANLAGE").text
-                self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB12").select()
-
+                self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB01").select()
+                self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7515/subANSPRECH:SAPLIPAR:0700/tabsTSTRIP_700/tabpKUND/ssubTSTRIP_SCREEN:SAPLIPAR:0130/subADRESSE:SAPLIPAR:0150/txtDIADR-NAME1").setFocus()
+                nome_cliente = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7515/subANSPRECH:SAPLIPAR:0700/tabsTSTRIP_700/tabpKUND/ssubTSTRIP_SCREEN:SAPLIPAR:0130/subADRESSE:SAPLIPAR:0150/txtDIADR-NAME1").text
+                
                 return {
                     "number": self._noteNumber,
                     "description_text": descrption_text,
                     "contato_email": contato_email,
                     "contato_sms": conato_sms,
                     "cod_contato": cod_contato,
-                    "inst": inst
+                    "inst": inst,
+                    "nome_cliente": nome_cliente
                 }
             case "CI":
+                self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB02").select()
+                self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB02/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7515/subANSPRECH:SAPLIPAR:0700/tabsTSTRIP_700/tabpKUND/ssubTSTRIP_SCREEN:SAPLIPAR:0130/subADRESSE:SAPLIPAR:0150/txtDIADR-NAME1").setFocus()
+                nome_cliente = self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB02/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7515/subANSPRECH:SAPLIPAR:0700/tabsTSTRIP_700/tabpKUND/ssubTSTRIP_SCREEN:SAPLIPAR:0130/subADRESSE:SAPLIPAR:0150/txtDIADR-NAME1").text
                 self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB09").select()
                 self._session.findById("wnd[0]/usr/tabsTAB_GROUP_10/tabp10\TAB09/ssubSUB_GROUP_10:SAPLIQS0:7217/subSUBSCREEN_1:SAPLIQS0:7790/subUSER0001:SAPLXQQM:0101/btnBTTOI").press()
                 inst = self._session.findById("wnd[0]/usr/ctxtZCCSTBI_FR_TOI-ANLAGE").text
@@ -120,7 +126,8 @@ class Iw52NoteMainScreen(Iw52NoteMainScreenInterface):
                     "contato_email": "",
                     "contato_sms": "",
                     "cod_contato": "",
-                    "inst": inst
+                    "inst": inst,
+                    "nome_cliente": nome_cliente
                 }
     
     def reOpenNote(self) -> None:

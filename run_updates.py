@@ -14,16 +14,16 @@ Fluxo:
 4. Atualizar tabela BI com dados agregados
 """
 
-from db.repositories.TablesUpdatedAt import TablesUpdatedAtRepository
-from db.repositories.Note import NoteRepository
-from db.repositories.BIEntity import BIEntityRepository
-from db.repositories.Attachment import AttachmentRepository
+from db.config import get_session
+from db.models import Attachment, Note, TablesUpdatedAt
+from db.tables import NotasAbertasTable
 from lib.screen.SapLogonScreen import SapLogonScreen
 import pandas as pd
 import datetime
 from dotenv import load_dotenv
 import os
-from typing import List, Dict, Tuple
+from typing import List, Dict
+from sqlalchemy import delete, insert
 
 load_dotenv()
 
@@ -32,12 +32,6 @@ SAP_USER = os.getenv("SAP_USER", "")
 SAP_PASSWORD_EP1 = os.getenv("SAP_PASSWORD_EP1", "")
 SAP_PASSWORD_EP2 = os.getenv("SAP_PASSWORD_EP2", "")
 
-# Repositórios
-updated_at_repo = TablesUpdatedAtRepository()
-note_repo = NoteRepository()
-bi_entity_repo = BIEntityRepository()
-attach_repo = AttachmentRepository()
-
 # Constantes
 REGIONS = {
     "SP": {"ambiente": "EP1", "senha": SAP_PASSWORD_EP1},
@@ -45,6 +39,27 @@ REGIONS = {
 }
 
 NOTE_TYPES = ["REC", "PRC", "SC/RC", "OVD"]
+
+
+class UpdateAbortedError(Exception):
+    """Erro usado para abortar a atualização antes de alterar a base."""
+
+
+def close_screen(screen, label: str) -> None:
+    if not screen:
+        return
+    try:
+        screen.close()
+    except Exception as e:
+        print(f"  ⚠ Erro ao fechar {label}: {e}")
+
+
+def touch_table_timestamp(session, table_name: str) -> None:
+    tables_updated_at = session.get(TablesUpdatedAt, table_name)
+    if not tables_updated_at:
+        session.add(TablesUpdatedAt(table_name=table_name, updated_at=datetime.datetime.now()))
+        return
+    tables_updated_at.updated_at = datetime.datetime.now()
 
 
 def fetch_notes_from_sap(ambiente: str, regiao: str, senha: str) -> pd.DataFrame:
@@ -69,26 +84,34 @@ def fetch_notes_from_sap(ambiente: str, regiao: str, senha: str) -> pd.DataFrame
     print(f"📌 Iniciando busca de notas - Região: {regiao}, Ambiente: {ambiente}")
     print(f"{'='*60}")
 
-    logon = SapLogonScreen()
-    login = logon.loadSystem(regiao, ambiente)
-    home = login.login(SAP_USER, senha, regiao, ambiente)
-    iw67Screen = home.openTransaction("iw67")
-
+    iw67Screen = None
     all_notes = []
+    successful_note_types = 0
 
-    # Iterar sobre todos os tipos de notas
-    for note_type in NOTE_TYPES:
-        try:
-            print(f"  📄 Buscando notas do tipo: {note_type}")
-            notes_screen = iw67Screen.openNotesScreen(regiao, noteType=note_type)
-            notes = notes_screen.getNotes(note_type)
-            all_notes.extend(notes)
-            print(f"  ✓ {len(notes)} nota(s) encontrada(s) do tipo {note_type}")
-        except Exception as e:
-            print(f"  ⚠ Nenhuma nota encontrada para tipo {note_type}: {e}")
-            continue
+    try:
+        logon = SapLogonScreen()
+        login = logon.loadSystem(regiao, ambiente)
+        home = login.login(SAP_USER, senha, regiao, ambiente)
+        iw67Screen = home.openTransaction("iw67")
 
-    notes_screen.close()
+        # Iterar sobre todos os tipos de notas
+        for note_type in NOTE_TYPES:
+            try:
+                print(f"  📄 Buscando notas do tipo: {note_type}")
+                notes_screen = iw67Screen.openNotesScreen(regiao, noteType=note_type)
+                notes = notes_screen.getNotes(note_type)
+                successful_note_types += 1
+                all_notes.extend(notes)
+                print(f"  ✓ {len(notes)} nota(s) encontrada(s) do tipo {note_type}")
+            except Exception as e:
+                print(f"  ⚠ Nenhuma nota encontrada para tipo {note_type}: {e}")
+                continue
+    finally:
+        close_screen(iw67Screen, f"IW67 {regiao}")
+
+    if successful_note_types == 0:
+        raise UpdateAbortedError(f"Nenhum tipo de nota foi lido com sucesso na região {regiao}")
+
     df = pd.DataFrame(all_notes)
 
     print(f"\n✓ Total de {len(all_notes)} notas buscadas da região {regiao}")
@@ -123,27 +146,29 @@ def enrich_notes_with_details(
         print("  ⚠ Nenhuma nota para enriquecer")
         return pd.DataFrame()
 
-    logon = SapLogonScreen()
-    login = logon.loadSystem(regiao, ambiente)
-    home = login.login(SAP_USER, os.getenv(f"SAP_PASSWORD_{ambiente.upper()}"), regiao, ambiente)
-    iw52Screen = home.openTransaction("iw52")
-
+    iw52Screen = None
     enriched_notes = []
 
-    for idx, note in enumerate(notes, 1):
-        note_number = note.get("note_number")
-        print(f"\n  [{idx}/{len(notes)}] Processando nota: {note_number}")
+    try:
+        logon = SapLogonScreen()
+        login = logon.loadSystem(regiao, ambiente)
+        home = login.login(SAP_USER, os.getenv(f"SAP_PASSWORD_{ambiente.upper()}"), regiao, ambiente)
+        iw52Screen = home.openTransaction("iw52")
 
-        try:
-            iw52NoteScreen = iw52Screen.openNote(note_number)
-            
-            # Determinar modelo da nota (CI = Recurso, NA = outros)
-            note_model = "CI" if note.get("note_type") == "Recurso" else "NA"
-            
-            # Obter detalhes
+        for idx, note in enumerate(notes, 1):
+            note_number = note.get("note_number")
+            print(f"\n  [{idx}/{len(notes)}] Processando nota: {note_number}")
+
+            iw52NoteScreen = None
             try:
+                iw52NoteScreen = iw52Screen.openNote(note_number)
+
+                # Determinar modelo da nota (CI = Recurso, NA = outros)
+                note_model = "CI" if note.get("note_type") == "Recurso" else "NA"
+
+                # Obter detalhes
                 details = iw52NoteScreen.getNoteDetails(note_model=note_model)
-                
+
                 # Adicionar informações de detalhes
                 note["description_detail"] = details.get("description_text", "")
                 note["email"] = details.get("contato_email", "")
@@ -158,34 +183,27 @@ def enrich_notes_with_details(
                     folder_path_to_download=f"./attachments/{ambiente}/{note_number}/",
                 )
                 note["attachments"] = attachments or []
-                
+
                 enriched_notes.append(note)
                 print(f"    ✓ Nota enriquecida com {len(note['attachments'])} anexo(s)")
 
             except Exception as e:
-                note["description_detail"] = ""
-                note["email"] = ""
-                note["sms"] = ""
-                note["cod_contact"] = ""
-                note["inst"] = ""
-                note["nome_cliente"] = ""
-                note["attachments"] = []
-                enriched_notes.append(note)
-                print(f"    ⚠ Erro ao enriquecer nota {note_number}: {e}")
-
-            iw52NoteScreen.back()
-
-        except Exception as e:
-            print(f"    ✗ Erro ao processar nota {note_number}: {e}")
-            continue
-
-    iw52Screen.close()
+                print(f"    ⚠ Erro ao enriquecer nota {note_number} ({regiao}): {e}")
+                # raise UpdateAbortedError(f"Erro ao enriquecer nota {note_number} ({regiao}): {e}") from e
+            finally:
+                if iw52NoteScreen:
+                    try:
+                        iw52NoteScreen.back()
+                    except Exception as e:
+                        raise UpdateAbortedError(f"Erro ao voltar da nota {note_number} ({regiao}): {e}") from e
+    finally:
+        close_screen(iw52Screen, f"IW52 {regiao}")
 
     print(f"\n✓ {len(enriched_notes)} de {len(notes)} notas foram enriquecidas")
     return pd.DataFrame(enriched_notes)
 
 
-def persist_notes_to_database(regiao: str, notas_df: pd.DataFrame) -> None:
+def persist_notes_to_database(regiao: str, notas_df: pd.DataFrame, session) -> None:
     """
     Persiste as notas enriquecidas no banco de dados.
 
@@ -193,7 +211,7 @@ def persist_notes_to_database(regiao: str, notas_df: pd.DataFrame) -> None:
     - Informações básicas na tabela Note
     - Anexos associados na tabela Attachment
 
-    Notas que já existem no banco são puladas (evita duplicatas).
+    Notas que já existem no banco são atualizadas; novas notas são criadas.
 
     Args:
         regiao (str): Região das notas
@@ -210,71 +228,69 @@ def persist_notes_to_database(regiao: str, notas_df: pd.DataFrame) -> None:
     notas_list = notas_df.to_dict(orient="records")
 
     created_count = 0
-    skipped_count = 0
+    updated_count = 0
 
     for idx, nota_dict in enumerate(notas_list, 1):
         note_number = nota_dict.get("note_number")
         print(f"\n  [{idx}/{len(notas_list)}] Processando: {note_number}")
 
-        # Verificar se nota já existe
-        nota_existente = note_repo.get_from_number(note_number)
-        if nota_existente:
-            print(f"    ⊘ Nota já existe no banco. Pulando...")
-            skipped_count += 1
-            continue
-        
-
         try:
-            # Criar nota no banco
-            nota = note_repo.create(
-                {
-                    "note_number": nota_dict.get("note_number"),
-                    "created_at": nota_dict.get("created_at"),
-                    "conclusion_date": nota_dict.get("conclusion_date"),
-                    "priority_text": nota_dict.get("priority_text"),
-                    "group": nota_dict.get("note_type"),
-                    "code_text": nota_dict.get("code_text"),
-                    "city": nota_dict.get("city"),
-                    "description": nota_dict.get("description"),
-                    "description_detail": nota_dict.get("description_detail", ""),
-                    "business_partner_id": nota_dict.get("business_partner_id"),
-                    "email": nota_dict.get("email", ""),
-                    "sms": nota_dict.get("sms", ""),
-                    "cod_contact": nota_dict.get("cod_contact", ""),
-                    "inst": nota_dict.get("inst", ""),
-                    "region": regiao,
-                    "nome_cliente": nota_dict.get("nome_cliente", ""),
-                }
-            )
+            payload = {
+                "note_number": nota_dict.get("note_number"),
+                "created_at": nota_dict.get("created_at"),
+                "conclusion_date": nota_dict.get("conclusion_date"),
+                "priority_text": nota_dict.get("priority_text"),
+                "group_": nota_dict.get("note_type"),
+                "code_text": nota_dict.get("code_text"),
+                "city": nota_dict.get("city"),
+                "description": nota_dict.get("description"),
+                "description_detail": nota_dict.get("description_detail", ""),
+                "business_partner_id": nota_dict.get("business_partner_id"),
+                "email": nota_dict.get("email", ""),
+                "sms": nota_dict.get("sms", ""),
+                "cod_contact": nota_dict.get("cod_contact", ""),
+                "inst": nota_dict.get("inst", ""),
+                "region": regiao,
+                "nome_cliente": nota_dict.get("nome_cliente", ""),
+            }
 
-            updated_at_repo.update_table_timestamp("sapAutoTPendingNotes")
+            nota_existente = session.query(Note).filter_by(note_number=note_number).one_or_none()
+            if nota_existente:
+                for key, value in payload.items():
+                    setattr(nota_existente, key, value)
+                nota = nota_existente
+                updated_count += 1
+                print(f"    ↻ Nota atualizada")
+            else:
+                nota = Note(**payload)
+                session.add(nota)
+                created_count += 1
+                print(f"    ✓ Nota salva com sucesso")
 
-            # Adicionar anexos
+            session.flush()
+            touch_table_timestamp(session, "sapAutoTPendingNotes")
+
+            # Sincronizar anexos
             attachments = nota_dict.get("attachments", [])
-            if attachments:
-                for attachment_url in attachments:
-                    try:
-                        attach_repo.create(
-                            note_id=nota.id,
-                            url=attachment_url,
-                            created_at=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        )
-                        updated_at_repo.update_table_timestamp("sapAutoTAttachments")
-                        print(f"      📎 Anexo adicionado: {attachment_url}")
-                    except Exception as e:
-                        print(f"      ✗ Erro ao adicionar anexo {attachment_url}: {e}")
-
-            created_count += 1
-            print(f"    ✓ Nota salva com sucesso")
+            session.query(Attachment).filter_by(note_id=nota.id).delete(synchronize_session=False)
+            for attachment_url in attachments:
+                session.add(
+                    Attachment(
+                        note_id=nota.id,
+                        url=attachment_url,
+                        created_at=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    )
+                )
+            touch_table_timestamp(session, "sapAutoTAttachments")
+            print(f"      📎 {len(attachments)} anexo(s) sincronizado(s)")
 
         except Exception as e:
-            print(f"    ✗ Erro ao salvar nota {note_number}: {e}")
-            continue
+            raise UpdateAbortedError(f"Erro ao salvar nota {note_number}: {e}") from e
 
-    print(f"\n✓ Resultado: {created_count} criadas, {skipped_count} puladas")
+    print(f"\n✓ Resultado: {created_count} criadas, {updated_count} atualizadas")
 
 
-def update_bi_table(notas_df: pd.DataFrame) -> None:
+def update_bi_table(notas_df: pd.DataFrame, session) -> None:
     """
     Atualiza a tabela BI com os dados das notas.
 
@@ -287,10 +303,6 @@ def update_bi_table(notas_df: pd.DataFrame) -> None:
     print(f"\n{'='*60}")
     print(f"📊 Atualizando tabela BI")
     print(f"{'='*60}")
-
-    if notas_df.empty:
-        print("  ⚠ Nenhuma nota para atualizar na BI")
-        return
 
     # Renomear colunas para o padrão esperado pela BI
     bi_notes = notas_df.copy()
@@ -305,17 +317,28 @@ def update_bi_table(notas_df: pd.DataFrame) -> None:
         inplace=True,
     )
 
+    required_columns = ["TipoNota", "NotaSAP", "DataCriacao", "ConclusaoDesejada", "Estado"]
+    if bi_notes.empty:
+        bi_notes = pd.DataFrame(columns=required_columns)
+    else:
+        missing_columns = [column for column in required_columns if column not in bi_notes.columns]
+        if missing_columns:
+            raise UpdateAbortedError(f"Colunas obrigatórias ausentes para BI: {missing_columns}")
+        bi_notes = bi_notes[required_columns]
+
     # Converter para dicionários e fazer replace
     replace_records = bi_notes.to_dict(orient="records")
     
     print(f"  Substituindo {len(replace_records)} registros na BI...")
-    bi_entity_repo.replace_all(replace_records)
-    updated_at_repo.update_table_timestamp("NotasAbertasTable")
+    session.execute(delete(NotasAbertasTable))
+    if replace_records:
+        session.execute(insert(NotasAbertasTable), replace_records)
+    touch_table_timestamp(session, "NotasAbertasTable")
     
     print(f"  ✓ Tabela BI atualizada com sucesso")
 
 
-def clean_old_notes(all_note_numbers: List[str]) -> None:
+def clean_old_notes(all_note_numbers: List[str], session) -> None:
     """
     Remove notas antigas do banco de dados que não estão mais na lista atual.
 
@@ -328,11 +351,12 @@ def clean_old_notes(all_note_numbers: List[str]) -> None:
     print(f"🧹 Limpando notas antigas do banco de dados")
     print(f"{'='*60}")
 
-    try:
-        deleted_count = note_repo.delete_all(notes_to_keep=all_note_numbers)
-        print(f"  ✓ {deleted_count} nota(s) removida(s)")
-    except Exception as e:
-        print(f"  ✗ Erro ao limpar notas antigas: {e}")
+    if all_note_numbers:
+        deleted_count = session.query(Note).filter(~Note.note_number.in_(all_note_numbers)).delete(synchronize_session=False)
+    else:
+        deleted_count = session.query(Note).delete(synchronize_session=False)
+    touch_table_timestamp(session, "sapAutoTPendingNotes")
+    print(f"  ✓ {deleted_count} nota(s) removida(s)")
 
 
 def run_full_update() -> None:
@@ -371,16 +395,16 @@ def run_full_update() -> None:
                 }
                 all_note_numbers.extend(notes_df.get("note_number", []).tolist())
             except Exception as e:
-                print(f"\n✗ Erro ao buscar notas da região {regiao}: {e}")
-                all_regions_data[regiao] = {"notas_basicas": pd.DataFrame(), "ambiente": config["ambiente"]}
+                raise UpdateAbortedError(f"Erro ao buscar notas da região {regiao}: {e}") from e
 
-        # 2. ENRIQUECER E PERSISTIR POR REGIÃO
+        # 2. ENRIQUECER TODAS AS REGIÕES ANTES DE ALTERAR A BASE
         for regiao, data in all_regions_data.items():
             notas_basicas = data["notas_basicas"]
             ambiente = data["ambiente"]
 
             if notas_basicas.empty:
                 print(f"\n⚠ Pulando {regiao}: sem notas para processar")
+                all_regions_data[regiao]["notas_finais"] = pd.DataFrame()
                 continue
 
             try:
@@ -391,35 +415,32 @@ def run_full_update() -> None:
                     notas_basicas.to_dict(orient="records"),
                 )
 
-                # Persistir no banco
-                persist_notes_to_database(regiao, notas_enriquecidas)
-
                 # Armazenar para BI
                 notas_enriquecidas["region"] = regiao
                 all_regions_data[regiao]["notas_finais"] = notas_enriquecidas
 
             except Exception as e:
-                print(f"\n✗ Erro ao processar região {regiao}: {e}")
-                all_regions_data[regiao]["notas_finais"] = pd.DataFrame()
+                raise UpdateAbortedError(f"Erro ao processar região {regiao}: {e}") from e
 
-        # 3. ATUALIZAR BI COM TODAS AS NOTAS
-        all_notes_for_bi = pd.concat(
-            [
-                data.get("notas_finais", pd.DataFrame())
-                for data in all_regions_data.values()
-                if not data.get("notas_finais", pd.DataFrame()).empty
-            ],
-            ignore_index=True,
-        )
+        # 3. PREPARAR DADOS DA BI
+        notes_for_bi = [
+            data.get("notas_finais", pd.DataFrame())
+            for data in all_regions_data.values()
+            if not data.get("notas_finais", pd.DataFrame()).empty
+        ]
+        all_notes_for_bi = pd.concat(notes_for_bi, ignore_index=True) if notes_for_bi else pd.DataFrame()
 
-        if not all_notes_for_bi.empty:
-            update_bi_table(all_notes_for_bi)
-        else:
-            print("\n⚠ Nenhuma nota para atualizar na BI")
+        # 4. SOMENTE AGORA ALTERAR A BASE, EM UMA ÚNICA TRANSAÇÃO
+        session = get_session()
+        try:
+            with session.begin():
+                for regiao, data in all_regions_data.items():
+                    persist_notes_to_database(regiao, data.get("notas_finais", pd.DataFrame()), session)
 
-        # 4. LIMPAR NOTAS ANTIGAS
-        if all_note_numbers:
-            clean_old_notes(all_note_numbers)
+                update_bi_table(all_notes_for_bi, session)
+                clean_old_notes(all_note_numbers, session)
+        finally:
+            session.close()
 
         # Sucesso!
         elapsed_time = datetime.datetime.now() - start_time

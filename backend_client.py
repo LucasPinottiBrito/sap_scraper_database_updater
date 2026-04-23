@@ -26,9 +26,10 @@ class BackendApiClient:
         timeout: float | None = None,
     ) -> None:
         self.base_url = (base_url or os.getenv("BACKEND_API_URL") or "http://localhost:8000/api/v1").rstrip("/")
-        self.token = token or os.getenv("BACKEND_API_TOKEN") or os.getenv("WORKER_API_TOKEN") or self._build_service_token()
+        self._static_token = token or os.getenv("BACKEND_API_TOKEN") or os.getenv("WORKER_API_TOKEN")
+        self.token = self._static_token
         self.timeout = timeout or float(os.getenv("BACKEND_API_TIMEOUT", "30"))
-        if not self.token:
+        if not self._static_token and not os.getenv("JWT_SECRET_KEY"):
             raise BackendApiError(
                 "Token do backend ausente. Configure WORKER_API_TOKEN no database_updater/.env "
                 "e o mesmo valor em backend/.env."
@@ -51,8 +52,9 @@ class BackendApiClient:
 
     def _request(self, method: str, path: str, allow_404: bool = False, **kwargs):
         headers = kwargs.pop("headers", {})
-        if self.token:
-            headers["Authorization"] = f"Bearer {self.token}"
+        token = self._get_token()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
 
         url = f"{self.base_url}{path}"
         try:
@@ -75,6 +77,11 @@ class BackendApiClient:
         if response.status_code == 204:
             return None
         return response.json()
+
+    def _get_token(self) -> str | None:
+        if self._static_token:
+            return self._static_token
+        return self._build_service_token()
 
     @staticmethod
     def _extract_error_detail(response: httpx.Response) -> str:

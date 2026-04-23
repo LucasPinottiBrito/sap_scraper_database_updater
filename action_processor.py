@@ -17,12 +17,14 @@ from enum import StrEnum
 import logging
 import os
 from pathlib import Path
+import time
 from typing import Any, Callable, Mapping, Optional
 
 from dotenv import load_dotenv
 
 from backend_client import BackendApiClient
 from lib.screen.SapLogonScreen import SapLogonScreen
+from sap_execution_lock import SapExecutionLock, SapExecutionLockBusy
 
 try:
     import pythoncom
@@ -32,6 +34,9 @@ except ImportError:  # pragma: no cover - pywin32 existe no ambiente Windows/SAP
 
 logger = logging.getLogger(__name__)
 load_dotenv(Path(__file__).resolve().parent / ".env")
+
+DEFAULT_POLL_INTERVAL_SECONDS = 120
+POLL_INTERVAL_ENV = "SAP_ACTION_QUEUE_POLL_INTERVAL_SECONDS"
 
 
 class QueueAction(StrEnum):
@@ -304,7 +309,13 @@ class ActionQueueProcessor:
         self.results: list[ExecutionResult] = []
 
     def buscar_acoes_pendentes(self) -> list[QueuedAction]:
-        return [QueuedAction.from_api(action) for action in self.queue_client.list_pending_actions()]
+        pending_actions: list[QueuedAction] = []
+        for payload in self.queue_client.list_pending_actions():
+            try:
+                pending_actions.append(QueuedAction.from_api(payload))
+            except Exception:
+                logger.error("Registro invalido retornado pela fila SAP: %s", payload, exc_info=True)
+        return pending_actions
 
     def processar_acao(self, action: QueuedAction) -> ExecutionResult:
         try:
@@ -343,9 +354,26 @@ class ActionQueueProcessor:
 
     def process_queue(self) -> dict[str, Any]:
         self.results = []
-        pending_actions = self.buscar_acoes_pendentes()
-
         logger.info("=== INICIANDO PROCESSAMENTO DE FILA ===")
+
+        try:
+            pending_actions = self.buscar_acoes_pendentes()
+        except Exception as exc:
+            error_message = f"Erro ao buscar acoes pendentes: {exc}"
+            logger.exception(error_message)
+            report = self._build_report(total=0, success=0, failed=0)
+            report["cycle_error"] = error_message
+            report["message"] = error_message
+            logger.info("=== FIM DO PROCESSAMENTO COM ERRO ===")
+            return report
+
+        return self.process_actions(pending_actions, log_start=False)
+
+    def process_actions(self, pending_actions: list[QueuedAction], log_start: bool = True) -> dict[str, Any]:
+        self.results = []
+        if log_start:
+            logger.info("=== INICIANDO PROCESSAMENTO DE FILA ===")
+
         logger.info("Encontradas %s acoes pendentes", len(pending_actions))
 
         for action in pending_actions:
@@ -396,13 +424,116 @@ class ActionQueueProcessor:
         }
 
 
-def run_queue_processor() -> dict[str, Any]:
+def configure_logging() -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
-    return ActionQueueProcessor().process_queue()
+
+
+def get_poll_interval_seconds() -> int:
+    raw_value = os.getenv(POLL_INTERVAL_ENV)
+    if not raw_value:
+        return DEFAULT_POLL_INTERVAL_SECONDS
+
+    try:
+        interval = int(raw_value)
+    except ValueError:
+        logger.warning(
+            "%s invalido (%s). Usando %s segundos.",
+            POLL_INTERVAL_ENV,
+            raw_value,
+            DEFAULT_POLL_INTERVAL_SECONDS,
+        )
+        return DEFAULT_POLL_INTERVAL_SECONDS
+
+    if interval <= 0:
+        logger.warning(
+            "%s deve ser maior que zero. Usando %s segundos.",
+            POLL_INTERVAL_ENV,
+            DEFAULT_POLL_INTERVAL_SECONDS,
+        )
+        return DEFAULT_POLL_INTERVAL_SECONDS
+
+    return interval
+
+
+def run_queue_processor() -> dict[str, Any]:
+    configure_logging()
+    return run_queue_processor_once_with_lock(ActionQueueProcessor())
+
+
+def run_queue_processor_once_with_lock(processor: ActionQueueProcessor | None = None) -> dict[str, Any]:
+    processor = processor or ActionQueueProcessor()
+
+    try:
+        pending_actions = processor.buscar_acoes_pendentes()
+    except Exception as exc:
+        error_message = f"Erro ao buscar acoes pendentes: {exc}"
+        logger.exception(error_message)
+        report = processor._build_report(total=0, success=0, failed=0)
+        report["cycle_error"] = error_message
+        report["message"] = error_message
+        return report
+
+    if not pending_actions:
+        return processor.process_actions(pending_actions)
+
+    try:
+        with SapExecutionLock(operation="fila SAP"):
+            return processor.process_actions(pending_actions)
+    except SapExecutionLockBusy:
+        logger.warning(
+            "SAP ocupado. %s acao(oes) da fila aguardarao o proximo ciclo.",
+            len(pending_actions),
+        )
+        report = processor._build_report(total=0, success=0, failed=0)
+        report["pending_count"] = len(pending_actions)
+        report["message"] = f"SAP ocupado; {len(pending_actions)} acao(oes) pendente(s) aguardando"
+        return report
+
+
+def run_queue_worker(
+    poll_interval_seconds: int | None = None,
+    processor_factory: Callable[[], ActionQueueProcessor] | None = None,
+) -> None:
+    configure_logging()
+    interval = poll_interval_seconds if poll_interval_seconds is not None else get_poll_interval_seconds()
+    if interval <= 0:
+        logger.warning(
+            "Intervalo informado deve ser maior que zero. Usando %s segundos.",
+            DEFAULT_POLL_INTERVAL_SECONDS,
+        )
+        interval = DEFAULT_POLL_INTERVAL_SECONDS
+
+    factory = processor_factory or ActionQueueProcessor
+    processor: ActionQueueProcessor | None = None
+
+    logger.info(
+        "Worker da fila SAP iniciado. Buscando acoes a cada %s segundos.",
+        interval,
+    )
+
+    while True:
+        try:
+            if processor is None:
+                processor = factory()
+
+            report = run_queue_processor_once_with_lock(processor)
+            logger.info("Ciclo finalizado: %s", report.get("message"))
+        except KeyboardInterrupt:
+            logger.info("Worker da fila SAP interrompido pelo usuario.")
+            break
+        except Exception:
+            logger.exception("Erro inesperado no ciclo da fila SAP. O worker continuara em execucao.")
+            processor = None
+
+        try:
+            time.sleep(interval)
+        except KeyboardInterrupt:
+            logger.info("Worker da fila SAP interrompido pelo usuario.")
+            break
+
 
 if __name__ == "__main__":
-    report = run_queue_processor()
-    print(report)
+    run_queue_worker()

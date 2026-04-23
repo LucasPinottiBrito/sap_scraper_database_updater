@@ -1,6 +1,4 @@
-from run_updates import run_full_update
-from action_processor import run_queue_processor
+from integrated_worker import run_integrated_worker
 
 if __name__ == "__main__":
-    # run_full_update()
-    run_queue_processor()
+    run_integrated_worker()

@@ -2,6 +2,7 @@
 *vbs
 *.log
 *.tmp
+.sap_execution.lock
 */__pycache__/
 /__pycache__/
 __pycache__/*

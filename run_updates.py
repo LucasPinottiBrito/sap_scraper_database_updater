@@ -22,10 +22,12 @@ import pandas as pd
 import datetime
 from dotenv import load_dotenv
 import os
+from pathlib import Path
 from typing import List, Dict
 from sqlalchemy import delete, insert
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 
 # Carregando credenciais de ambiente
 SAP_USER = os.getenv("SAP_USER", "")
@@ -359,7 +361,7 @@ def clean_old_notes(all_note_numbers: List[str], session) -> None:
     print(f"  ✓ {deleted_count} nota(s) removida(s)")
 
 
-def run_full_update() -> None:
+def _run_full_update_unlocked() -> None:
     """
     Orquestra o fluxo completo de atualização de dados SAP.
 
@@ -456,6 +458,20 @@ def run_full_update() -> None:
         print(f"   Tempo até erro: {elapsed_time}")
         print("="*60 + "\n")
         raise
+
+
+def run_full_update(acquire_lock: bool = True) -> None:
+    if not acquire_lock:
+        _run_full_update_unlocked()
+        return
+
+    from sap_execution_lock import SapExecutionLock, SapExecutionLockBusy
+
+    try:
+        with SapExecutionLock(operation="atualizacao de bases SAP"):
+            _run_full_update_unlocked()
+    except SapExecutionLockBusy as exc:
+        raise UpdateAbortedError("SAP ocupado por outra execucao. Atualizacao nao iniciada.") from exc
 
 
 if __name__ == "__main__":
